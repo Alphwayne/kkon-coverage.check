@@ -31,7 +31,7 @@ const AddressChecker = () => {
     setCoverageResult(null);
 
     try {
-      const response = await axios.post("http://localhost:5000/api/check-coverage", {
+      const response = await axios.post("https://kkon-cc-backend.onrender.com/api/check-coverage", {
         address,
       });
       setCoverageResult(response.data);
