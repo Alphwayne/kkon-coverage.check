@@ -2,16 +2,20 @@ import React, { useState } from "react";
 import axios from "axios";
 
 const normalizeInput = (input) => {
-  const lower = input.toLowerCase();
-  return lower
-    .replace(/\bst\b/g, "street")
-    .replace(/\brd\b/g, "road")
-    .replace(/\bave\b/g, "avenue")
-    .replace(/\bdr\b/g, "drive")
-    .replace(/\bct\b/g, "court")
-    .replace(/\bln\b/g, "lane")
-    .replace(/[^a-z0-9 ]/g, "")
-    .trim();
+  const abbreviations = {
+    st: "street",
+    rd: "road",
+    ave: "avenue",
+    blvd: "boulevard",
+    cres: "crescent",
+    hwy: "highway",
+  };
+
+  return input
+    .toLowerCase()
+    .split(" ")
+    .map((word) => abbreviations[word] || word)
+    .join(" ");
 };
 
 const AddressChecker = () => {
@@ -50,12 +54,30 @@ const AddressChecker = () => {
 
     try {
       const normalizedAddress = normalizeInput(address);
-      const response = await axios.post("https://kkon-cc-backend.onrender.com/api/match-streets", { address: normalizedAddress });
-      if (response.data.results.length > 0) {
-        setMatchedLocations(response.data.results);
-      } else {
+
+      const response = await axios.get("https://nominatim.openstreetmap.org/search", {
+        params: {
+          q: normalizedAddress,
+          format: "json",
+          addressdetails: 1,
+          countrycodes: "ng",
+          limit: 5,
+        },
+        headers: {
+          'Accept-Language': 'en'
+        }
+      });
+
+      if (response.data.length === 0) {
         setCoverageResult({ coverage: false, address });
+        return;
       }
+
+      const results = response.data.map((loc) => ({
+        name: loc.display_name,
+        coordinates: [parseFloat(loc.lon), parseFloat(loc.lat)],
+      }));
+      setMatchedLocations(results);
     } catch (error) {
       console.error("Error fetching matches:", error);
       setCoverageResult({ error: true });
@@ -69,7 +91,7 @@ const AddressChecker = () => {
     setLoading(true);
     try {
       const [lng, lat] = selectedLocation.coordinates;
-      const response = await axios.post("https://kkon-cc-backend.onrender.com/api/check-coordinates", {
+      const response = await axios.post("http://localhost:5000/api/check-coverage", {
         lat,
         lng,
       });
@@ -113,7 +135,7 @@ const AddressChecker = () => {
                 <h2>Enter Your Street Name</h2>
                 <input
                   type="text"
-                  placeholder="e.g. Allen / Toyin"
+                  placeholder="e.g. Allen Avenue"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   required
@@ -130,13 +152,25 @@ const AddressChecker = () => {
             {matchedLocations.length > 0 && !selectedLocation && (
               <div className="modal-form">
                 <h2>Select Your Exact Location</h2>
-                <ul style={{ padding: 0, listStyle: "none" }}>
+                <ul style={{ paddingLeft: 0 }}>
                   {matchedLocations.map((loc, idx) => (
-                    <li key={idx} style={{ marginBottom: "8px" }}>
+                    <li key={idx} style={{ listStyle: "none", marginBottom: "10px" }}>
                       <button
                         onClick={() => setSelectedLocation(loc)}
                         className="location-option"
-                        style={{ width: "100%", padding: "10px", textAlign: "left" }}
+                        style={{
+                          background: "#ffffff",
+                          border: "1px solid #d32f2f",
+                          color: "#333333",
+                          padding: "12px 16px",
+                          borderRadius: "6px",
+                          width: "100%",
+                          textAlign: "left",
+                          fontSize: "15px",
+                          fontWeight: "500",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                        }}
                       >
                         {loc.name}
                       </button>
@@ -172,7 +206,7 @@ const AddressChecker = () => {
                 <h2>❌ Sorry, No Coverage Yet</h2>
                 <p>
                   Your location <strong>{coverageResult.address}</strong> is not covered yet.
-                  Please leave your contact information and we will notify you when coverage is available.
+                  Please leave your contact info and we will notify you when coverage is available.
                 </p>
                 <input
                   type="text"
