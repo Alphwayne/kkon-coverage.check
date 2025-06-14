@@ -91,7 +91,7 @@ const AddressChecker = () => {
     setLoading(true);
     try {
       const [lng, lat] = selectedLocation.coordinates;
-      const response = await axios.post("http://localhost:5000/api/check-coverage", {
+      const response = await axios.post("https://kkon-cc-backend.onrender.com/api/check-coverage", {
         lat,
         lng,
       });
